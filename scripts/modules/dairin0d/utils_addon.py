@@ -1699,7 +1699,7 @@ class PresetManager:
         def visit_Name(self, node):
             try:
                 value = self._names_to_consts[node.id]
-                return ast.copy_location(ast.NameConstant(value=value), node)
+                return ast.copy_location(ast.Constant(value=value), node)
             except KeyError:
                 return node
     
