@@ -115,10 +115,10 @@ class Selection:
         elif mode == 'EDIT_LATTICE':
             return any(item.select for item in active_obj.data.points)
         elif mode == 'EDIT_ARMATURE':
-            return any(item.select_head or item.select_tail
-                       for item in active_obj.data.edit_bones)
+            return any(item.select_head or item.select_tail for item in active_obj.data.edit_bones)
         elif mode == 'POSE':
-            return any(item.select for item in active_obj.data.bones)
+            selectable_bones = (active_obj.pose.bones if bpy.app.version >= (5, 0, 0) else active_obj.data.bones)
+            return any(item.select for item in selectable_bones)
         elif mode == 'PARTICLE':
             # Theoretically, particle keys can be selected,
             # but there seems to be no API for working with this
@@ -271,6 +271,7 @@ class Selection:
         elif mode == 'POSE':
             total = len(active_obj.data.bones)
             item = active_obj.data.bones.active
+            selectable_bones = (active_obj.pose.bones if bpy.app.version >= (5, 0, 0) else active_obj.data.bones)
             
             if self.pose_bones:
                 pose_bones = active_obj.pose.bones
@@ -278,15 +279,17 @@ class Selection:
                 pb = (pose_bones.get(item.name) if item else None)
                 yield ([], pb, total)
                 
-                for item in active_obj.data.bones:
+                for item in selectable_bones:
                     if not (item and item.name): return # object deleted (state disrupted)
                     yield (pose_bones.get(item.name), sel_map[item.select])
             else:
+                data_bones = active_obj.data.bones
+                
                 yield ([], item, total)
                 
-                for item in active_obj.data.bones:
+                for item in selectable_bones:
                     if not (item and item.name): return # object deleted (state disrupted)
-                    yield (item, sel_map[item.select])
+                    yield (data_bones.get(item.name), sel_map[item.select])
         elif mode == 'PARTICLE':
             # Theoretically, particle keys can be selected,
             # but there seems to be no API for working with this
@@ -647,11 +650,13 @@ class Selection:
             if select_all_action:
                 bpy.ops.pose.select_all(action=select_all_action)
             
+            selectable_bones_path = ("context.pose.bones" if bpy.app.version >= (5, 0, 0) else "context.data.bones")
+            
             if use_brute_force:
-                selector = make_selector({"names":[(None, ["select"])], "item_map":"context.data.bones"})
+                selector = make_selector({"names":[(None, ["select"])], "item_map":selectable_bones_path})
                 selector(active_obj.data.bones, data=data, context=active_obj)
             else:
-                selector = make_selector({"names":[(None, ["select"])], "item_map":"context.data.bones", "use_kv":True})
+                selector = make_selector({"names":[(None, ["select"])], "item_map":selectable_bones_path, "use_kv":True})
                 selector(data, context=active_obj)
         elif mode == 'PARTICLE':
             if select_all_action:

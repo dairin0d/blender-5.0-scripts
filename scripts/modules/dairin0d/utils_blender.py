@@ -227,33 +227,25 @@ def _apply_constraints(obj, predicate, owner='OBJECT', mode='DELETE', bones='ALL
         if obj.type != 'ARMATURE': return
         if obj.mode == 'EDIT': return
         
-        obj_bones = obj.data.bones
-        pose_bones = obj.pose.bones
+        selectable_bones = BlUtil.Bones(obj)
         
         if (bones is None) or (bones == 'ALL'):
-            bones = obj_bones
+            bones = selectable_bones
         elif bones == 'SELECTED':
-            bones = [bone for bone in obj_bones if bone.select]
+            bones = [bone for bone in selectable_bones if bone.select]
         
-        def activate_bone(bone):
-            # At least for now, Blender doesn't actually update context's active bone
-            # until bone.select is assigned something (even if it's the same value)
-            obj_bones.active = bone
-            bone.select = bone.select
-        
-        active_bone = obj_bones.active
+        active_bone = selectable_bones.active
         
         for bone in bones:
-            bone_name = (bone if isinstance(bone, str) else bone.name)
-            bone = obj_bones.get(bone_name)
-            if not bone: continue
+            pose_bone = selectable_bones.get_pose(bone)
+            if not pose_bone: continue
             
-            activate_bone(bone)
-            for constraint in tuple(pose_bones[bone.name].constraints):
+            selectable_bones.active = bone
+            for constraint in tuple(pose_bone.constraints):
                 if not predicate(constraint): continue
                 apply_constraint(constraint.name, owner=owner, mode=mode)
         
-        activate_bone(active_bone)
+        selectable_bones.active = active_bone
     else:
         for constraint in tuple(obj.constraints):
             if not predicate(constraint): continue
@@ -728,17 +720,6 @@ class BlUtil:
             return result
         
         @staticmethod
-        def iter_bone_info(obj):
-            data = obj.data
-            if obj.mode == 'EDIT':
-                for bone in data.edit_bones:
-                    yield (bone, (bone.select, bone.select_head, bone.select_tail))
-            else:
-                for bone in obj.pose.bones:
-                    _bone = bone.bone #data.bones[bone.name] # equivalent
-                    yield (bone, (_bone.select, _bone.select_head, _bone.select_tail))
-        
-        @staticmethod
         def bounding_box(obj, matrix=None):
             if (obj.type == 'LATTICE') and (not obj.is_evaluated):
                 # In Blender 2.8, original (non-"evaluated") lattices always
@@ -1053,41 +1034,88 @@ class BlUtil:
                     users_map1 = BlUtil.Data.get_users_map(bpy_datas, self.use_fake_user)
     
     class Bones:
-        @staticmethod
-        def active_get(obj=None, pose=False):
-            if not obj:
-                if pose:
-                    if hasattr(bpy.context, "active_pose_bone"): return bpy.context.active_pose_bone
-                else:
-                    if hasattr(bpy.context, "active_bone"): return bpy.context.active_bone
+        # A wrapper for handling API differences
+        class BonesWrapper:
+            def __init__(self, obj):
+                self._obj = obj
                 
-                obj = bpy.context.object
+                if obj.mode == 'EDIT':
+                    self._bones_active = obj.data.edit_bones
+                    self._bones_select = self._bones_active
+                else:
+                    # Blender 5 moved pose bone selection to PoseBone
+                    # (but active state remained in ArmatureBones, for some reason)
+                    if bpy.app.version >= (5, 0, 0):
+                        self._bones_active = obj.data.bones
+                        self._bones_select = obj.pose.bones
+                    else:
+                        self._bones_active = obj.data.bones
+                        self._bones_select = self._bones_active
             
+            def __active_get(self):
+                if self._bones_active is self._bones_select: return self._bones_active.active
+                return self._bones_select.get(self._bones_active.active.name)
+            def __active_set(self, bone):
+                bone_name = (bone if isinstance(bone, str) else bone.name)
+                self._bones_active.active = self._bones_active.get(bone_name)
+                # Blender might not update the context's active bone until
+                # bone.select is assigned something (even the same value)?
+                bone = self._bones_select.get(bone_name)
+                bone.select = bone.select
+            active = property(__active_get, __active_set)
+            
+            def get_edit(self, bone, default=None):
+                if bone is None: return default
+                bone_name = (bone if isinstance(bone, str) else bone.name)
+                return self._obj.data.edit_bones.get(bone_name, default)
+            
+            def get_bone(self, bone, default=None):
+                if bone is None: return default
+                bone_name = (bone if isinstance(bone, str) else bone.name)
+                return self._obj.data.bones.get(bone_name, default)
+            
+            def get_pose(self, bone, default=None):
+                if bone is None: return default
+                bone_name = (bone if isinstance(bone, str) else bone.name)
+                return self._obj.pose.bones.get(bone_name, default)
+            
+            def __len__(self):
+                return len(self._bones_select)
+            
+            def __getitem__(self, key):
+                return self._bones_select[key]
+            
+            def __iter__(self):
+                return iter(self._bones_select)
+            
+            def __getattr__(self, name):
+                return getattr(self._bones_select, name)
+        
+        # Shorthand for convenience
+        def __new__(cls, obj):
+            return cls.BonesWrapper(obj)
+        
+        @staticmethod
+        def active_get(obj=None, bone_type=None):
+            if not obj: obj = bpy.context.object
             if (not obj) or (obj.type != 'ARMATURE'): return None
             
-            bone = (obj.data.bones.active if obj.mode != 'EDIT' else obj.data.edit_bones.active)
+            # In edit mode, edit bones may not correspond to regular or pose bones
+            if (obj.mode == 'EDIT') and (bone_type != 'EDIT'): return None
             
-            if pose and bone:
-                # In edit mode, edit bones may not correspond to regular or pose bones
-                if obj.mode == 'EDIT': return None
-                bone = obj.pose.bones[bone.name]
-            
-            return bone
+            bones = BlUtil.Bones(obj)
+            if bone_type == 'EDIT': return bones.get_edit(bones.active)
+            if bone_type == 'BONE': return bones.get_bone(bones.active)
+            if bone_type == 'POSE': return bones.get_pose(bones.active)
+            return bones.active # by default, return selectable bone for current context
         
         @staticmethod
         def active_set(obj, bone):
             if not obj: obj = bpy.context.object
             if (not obj) or (obj.type != 'ARMATURE'): return
             
-            if not isinstance(bone, str): bone = bone.name
-            
-            bones = (obj.data.bones if obj.mode != 'EDIT' else obj.data.edit_bones)
-            bone = bones.get(bone)
-            
-            # At least for now, Blender doesn't actually update context's active bone
-            # until bone.select is assigned something (even if it's the same value)
+            bones = BlUtil.Bones(obj)
             bones.active = bone
-            bone.select = bone.select
     
     class Collection:
         @staticmethod

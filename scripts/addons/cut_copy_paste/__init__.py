@@ -1060,11 +1060,12 @@ class OperatorPaste:
     def postprocess_armature(self):
         selection_state = self.select_pasted_original
         for obj in self.objs:
-            armature = obj.data
-            for bone in armature.bones:
+            for bone in BlUtil.Bones(obj):
                 bone.select = selection_state
-                bone.select_head = selection_state
-                bone.select_tail = selection_state
+                if hasattr(bone, "select_head"):
+                    bone.select_head = selection_state
+                if hasattr(bone, "select_tail"):
+                    bone.select_tail = selection_state
         
         bpy.ops.object.join()
     
