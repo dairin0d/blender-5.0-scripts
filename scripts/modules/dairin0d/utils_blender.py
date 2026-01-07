@@ -1460,14 +1460,24 @@ class BlUtil:
     
     class Material:
         @staticmethod
+        def get_node_tree(mat, ensure=False):
+            # Since Blender 5, materials always use nodes, and use_nodes will be removed in Blender 6
+            if not mat: return None
+            if not hasattr(mat, "use_nodes"): return mat.node_tree
+            if ensure: mat.use_nodes = True
+            return (mat.node_tree if mat.use_nodes else None)
+        
+        @staticmethod
         def copy_nodes(src_mat, dst_mat, include=None, exclude=None):
             # So far, Blender has no API to directly copy nodes between node trees,
             # and BlRna serializing/deserializing can't fully copy some node data
-            src_use_nodes = src_mat.use_nodes
-            dst_use_nodes = dst_mat.use_nodes
             
-            src_mat.use_nodes = True
-            dst_mat.use_nodes = True
+            if hasattr(src_mat, "use_nodes"):
+                src_use_nodes = src_mat.use_nodes
+                dst_use_nodes = dst_mat.use_nodes
+                
+                src_mat.use_nodes = True
+                dst_mat.use_nodes = True
             
             context = bpy.context
             scene = context.scene
@@ -1522,8 +1532,9 @@ class BlUtil:
             bpy.data.objects.remove(obj)
             bpy.data.meshes.remove(mesh)
             
-            src_mat.use_nodes = src_use_nodes
-            dst_mat.use_nodes = dst_use_nodes
+            if hasattr(src_mat, "use_nodes"):
+                src_mat.use_nodes = src_use_nodes
+                dst_mat.use_nodes = dst_use_nodes
     
     class Image:
         # path_mode: 'DONT_CHANGE', 'ABSOLUTE', 'RELATIVE'
