@@ -73,6 +73,8 @@ def initialize():
     blf_draw = blf.draw
     blf_word_wrap = blf.word_wrap
     
+    # Note: vertex formats must be 4-bytes-aligned
+    
     def detect_data_type(buffer):
         try:
             while True:

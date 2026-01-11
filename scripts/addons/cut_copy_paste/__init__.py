@@ -1077,6 +1077,7 @@ class OperatorPaste:
         return data
     
     def merge_matching_resources(self, old_resources, new_resources):
+        # Note: bindcode was removed in Blender 5
         ignore = set(bpy.types.ID.bl_rna.properties.keys())
         ignore_image = {"bindcode"} | ignore
         ignore_image_nopixels = {"pixels"} | ignore_image
