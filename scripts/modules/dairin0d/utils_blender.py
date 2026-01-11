@@ -1637,11 +1637,105 @@ class BlUtil:
             
             return options
     
-    class FCurve:
+    class Action:
         @staticmethod
-        def find_all():
+        def target_id_type(action):
+            if hasattr(action, "id_root"):
+                return action.id_root
+            
+            for slot in action.slots:
+                return slot.target_id_type
+            
+            return 'UNSPECIFIED'
+        
+        @staticmethod
+        def fcurve_find(action, data_path, index=0):
+            if hasattr(action, "fcurves"):
+                return action.fcurves.find(data_path, index=index)
+            
+            for layer in action.layers:
+                for strip in layer.strips:
+                    for slot in action.slots:
+                        channelbag = strip.channelbag(slot)
+                        if not channelbag: continue
+                        return channelbag.fcurves.find(data_path, index=index)
+        
+        @staticmethod
+        def fcurve_new(action, data_path, index=0, group_name=""):
+            if hasattr(action, "fcurves"):
+                return action.fcurves.new(data_path, index=index, action_group=group_name)
+            
+            try:
+                layer = action.layers[0]
+            except IndexError:
+                layer = action.layers.new("Layer")
+            
+            try:
+                strip = layer.strips[0]
+            except IndexError:
+                strip = layer.strips.new(type='KEYFRAME')
+            
+            try:
+                slot = action.slots[0]
+            except IndexError:
+                # 'UNSPECIFIED' is mentioned in Blender's anim_utils.py module
+                slot = action.slots.new('UNSPECIFIED', "Slot")
+            
+            channelbag = strip.channelbag(slot, ensure=True)
+            
+            return channelbag.fcurves.new(data_path, index=index, group_name=group_name)
+        
+        @staticmethod
+        def fcurve_ensure(action, data_path, index=0, group_name=""):
+            fcurve = BlUtil.Action.fcurve_find(action, data_path, index)
+            if not fcurve: fcurve = BlUtil.Action.fcurve_new(action, data_path, index, group_name)
+            return fcurve
+        
+        @staticmethod
+        def fcurve_remove(action, fcurve):
+            if hasattr(action, "fcurves"):
+                action.fcurves.remove(fcurve)
+                return
+            
+            for layer in action.layers:
+                for strip in layer.strips:
+                    for slot in action.slots:
+                        channelbag = strip.channelbag(slot)
+                        if not channelbag: continue
+                        try:
+                            channelbag.fcurves.remove(fcurve)
+                            return
+                        except Exception:
+                            pass
+        
+        @staticmethod
+        def groups(action):
+            if hasattr(action, "groups"):
+                yield from action.groups
+                return
+            
+            for layer in action.layers:
+                for strip in layer.strips:
+                    for slot in action.slots:
+                        channelbag = strip.channelbag(slot)
+                        if channelbag: yield from channelbag.groups
+        
+        @staticmethod
+        def fcurves(action):
+            if hasattr(action, "fcurves"):
+                yield from action.fcurves
+                return
+            
+            for layer in action.layers:
+                for strip in layer.strips:
+                    for slot in action.slots:
+                        channelbag = strip.channelbag(slot)
+                        if channelbag: yield from channelbag.fcurves
+        
+        @staticmethod
+        def all_fcurves():
             for action in bpy.data.actions:
-                for fcurve in action.fcurves:
+                for fcurve in BlUtil.Action.fcurves(action):
                     yield {"id": action, "fcurve": fcurve}
             
             for name in dir(bpy.data):
@@ -1670,7 +1764,27 @@ class BlUtil:
                                 strips.extend(strip.strips)
         
         @staticmethod
-        def find_dependencies(queries=None, context=None):
+        def expand_queries(queries):
+            if queries is None: return queries
+            # If queries contain idblocks, expand with their actions too
+            if hasattr(queries, "items"):
+                new_queries = dict(queries)
+                for key, value in queries.items():
+                    if not isinstance(key, tuple): continue
+                    anim_data = getattr(key[0], "animation_data", None)
+                    if not (anim_data and anim_data.action): continue
+                    new_queries[(anim_data.action, key[1])] = value
+            else:
+                new_queries = set(queries)
+                for key in queries:
+                    if not isinstance(key, tuple): continue
+                    anim_data = getattr(key[0], "animation_data", None)
+                    if not (anim_data and anim_data.action): continue
+                    new_queries.add((anim_data.action, key[1]))
+            return new_queries
+        
+        @staticmethod
+        def fcurve_dependencies(queries=None, context=None):
             if context is None: context = bpy.context
             
             def get_target_id(variable, target):
@@ -1679,7 +1793,17 @@ class BlUtil:
                     if target.context_property == 'ACTIVE_VIEW_LAYER': return context.view_layer
                 return target.id
             
-            for fcurve_info in BlUtil.FCurve.find_all():
+            # If queries contain idblocks, expand with their actions too
+            if queries is not None:
+                old_queries = queries
+                queries = set(old_queries)
+                for key in old_queries:
+                    if not isinstance(key, tuple): continue
+                    anim_data = getattr(key[0], "animation_data", None)
+                    if not (anim_data and anim_data.action): continue
+                    queries.add((anim_data.action, key[1]))
+            
+            for fcurve_info in BlUtil.Action.all_fcurves():
                 fcurve = fcurve_info["fcurve"]
                 
                 if (queries is None) or ((fcurve.id_data, fcurve.data_path) in queries):
