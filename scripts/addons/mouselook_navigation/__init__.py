@@ -386,7 +386,7 @@ class MouselookNavigation:
     
     @classmethod
     def poll(cls, context):
-        if not addon.settings.is_enabled: return False
+        if not is_enabled(context): return False
         return (context.space_data.type == 'VIEW_3D')
     
     def modal(self, context, event):
@@ -1480,7 +1480,7 @@ def draw_crosshair(self, context, use_focus):
             batch.draw(shader)
 
 def draw_callback_view(self, context):
-    if not settings.is_enabled: return
+    if not is_enabled(context): return
     
     if self.sv.region_data != context.region_data: return
     
@@ -1489,7 +1489,7 @@ def draw_callback_view(self, context):
         draw_crosshair(self, context, True)
 
 def draw_callback_px(self, context):
-    if not settings.is_enabled: return
+    if not is_enabled(context): return
     
     context = bpy.context # we need most up-to-date context
     
@@ -1696,7 +1696,12 @@ class SubdivisionNavigate:
 # IMPORTANT: putting an operator in a standard (e.g. view3d.*) category is REQUIRED for shortcut assignment to work
 @addon.Operator.execute(idname="view3d.mouselook_navigation_toggle_enabled", label="Toggle Mouselook Navigation", description="Enable/disable Mouselook Navigation")
 def VIEW3D_OT_mouselook_navigation_toggle_enabled(self, context):
-    settings.is_enabled = not settings.is_enabled
+    # Note: we do this via an operator, because raw properties can't be assigned shortcuts
+    if settings.per_workspace_toggle:
+        workspace_settings = context.workspace.mouselook_navigation
+        workspace_settings.is_enabled = not workspace_settings.is_enabled
+    else:
+        settings.is_enabled = not settings.is_enabled
     BlUI.tag_redraw()
 
 # IMPORTANT: putting an operator in a standard (e.g. view3d.*) category is REQUIRED for shortcut assignment to work
@@ -1996,7 +2001,8 @@ def draw_view3d_header(self, context):
         if settings.show_trackball:
             row.operator("view3d.mouselook_navigation_toggle_trackball", text="", icon='ORIENTATION_GIMBAL', depress=settings.is_trackball)
         
-        row.operator("view3d.mouselook_navigation_toggle_enabled", text="", icon='VIEW3D', depress=settings.is_enabled)
+        row.operator("view3d.mouselook_navigation_toggle_enabled", text="", icon='VIEW3D', depress=is_enabled(context))
+        
         # row.popover("VIEW3D_PT_mouselook_navigation_header_popover", text="")
 
 @addon.Panel(idname="VIEW3D_PT_mouselook_navigation_keymap_modifiers_popover", label="Modifiers", space_type='CONSOLE', region_type='WINDOW')
@@ -2321,6 +2327,16 @@ class NavigationDirectionFlip:
         layout.prop(self, "zoom_y", toggle=True)
         layout.prop(self, "zoom_wheel", toggle=True)
 
+def is_enabled(context=None):
+    if context is None: context = bpy.context
+    if not settings.per_workspace_toggle: return settings.is_enabled
+    return context.workspace.mouselook_navigation.is_enabled
+
+@addon.type_extension("WorkSpace", "mouselook_navigation")
+@addon.PropertyGroup
+class WorkspaceSettingsPG:
+    is_enabled: True | prop("Enable/disable Mouselook Navigation in this workspace", "")
+
 @addon.Internal.Include
 class InternalPG:
     is_enabled: True | prop("Enable/disable Mouselook Navigation", "")
@@ -2451,6 +2467,8 @@ class ThisAddonPreferences:
         "the presence of some other addons may need to be more than 1 frame.",
         min=1)
     
+    per_workspace_toggle: False | prop("Per-Workspace", "Enable/disable Mouselook Navigation globally or independently for each workspace")
+    
     def draw(self, context):
         layout = NestedLayout(self.layout)
         
@@ -2549,6 +2567,7 @@ class ThisAddonPreferences:
             with layout.row()(alignment='LEFT'):
                 layout.label(text="System:")
                 layout.prop(*settings("keymap_registration_delay"), text="Keymap registration delay")
+                layout.prop(*settings("per_workspace_toggle"), toggle=True)
     
     def draw_autoreg_keymaps(self, context, layout):
         is_showing_default_input_settings = self.is_showing_default_input_settings
