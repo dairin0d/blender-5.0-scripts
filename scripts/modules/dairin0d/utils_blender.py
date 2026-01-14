@@ -32,7 +32,7 @@ from mathutils.geometry import intersect_line_sphere
 from .utils_math import matrix_compose, matrix_inverted_safe, transform_point_normal
 from .bounds import Bounds, RangeAggregator
 from .utils_python import attrs_to_dict
-from .bpy_inspect import BlRna, IDTypes
+from .bpy_inspect import BlRna, BpyOp, IDTypes
 
 # =========================================================================== #
 
@@ -107,14 +107,13 @@ def apply_shapekeys(obj):
 
 def apply_modifier(name, apply_as='DATA', keep_modifier=False, which='DEFAULT'):
     try:
-        if which == 'GPENCIL':
+        if which in ('GPENCIL', 'GREASEPENCIL') and BpyOp("object.gpencil_modifier_apply"):
             bpy.ops.object.gpencil_modifier_apply(modifier=name, apply_as=apply_as)
         else:
             if apply_as == 'SHAPE':
                 bpy.ops.object.modifier_apply_as_shapekey(modifier=name, keep_modifier=keep_modifier)
             else:
                 bpy.ops.object.modifier_apply(modifier=name)
-        
         return 'APPLIED'
     except RuntimeError as exc:
         #print(repr(exc))
@@ -176,7 +175,7 @@ def _apply_modifiers(obj, predicate, options=(), apply_as='DATA', which='DEFAULT
     
     objects_to_delete = set()
     
-    if which == 'GPENCIL':
+    if (which in ('GPENCIL', 'GREASEPENCIL')) and hasattr(obj, "grease_pencil_modifiers"):
         modifiers = obj.grease_pencil_modifiers
         covert_to_mesh = False
         delete_operands = False
@@ -2873,6 +2872,9 @@ class MeshEquivalent:
     
     @classmethod
     def _get_GreasePencil(cls, gpencil, extras):
+        # In the new implementation, strokes are curves with incomplete python API
+        if bpy.app.version >= (4, 3, 0): return
+        
         cls._add_materials(gpencil.materials, extras)
         
         convert_pos = extras["convert_pos"]

@@ -85,6 +85,15 @@ settings = addon.settings
 # * global: relative to view, no rotation, original global
 # * local: aligned to parent, original local
 
+_grease_pencil_obj_types = {'GPENCIL', 'GREASEPENCIL'}
+
+if bpy.app.version >= (4, 3, 0):
+    _grease_pencil_obj_type = 'GREASEPENCIL'
+    _grease_pencil_edit_mode = 'EDIT_GREASE_PENCIL'
+else:
+    _grease_pencil_obj_type = 'GPENCIL'
+    _grease_pencil_edit_mode = 'EDIT_GPENCIL'
+
 class ClipboardUtil:
     content_key = "Blender Clipboard"
     
@@ -96,7 +105,7 @@ class ClipboardUtil:
         ('EDIT_CURVE', "Curve", "Edit Curve mode"),
         ('EDIT_SURFACE', "Surface", "Edit Surface mode"),
         ('EDIT_METABALL', "Metaball", "Edit Metaball mode"),
-        ('EDIT_GPENCIL', "Grease Pencil", "Edit Grease Pencil mode"),
+        (_grease_pencil_edit_mode, "Grease Pencil", "Edit Grease Pencil mode"),
         ('EDIT_ARMATURE', "Armature", "Edit Armature mode"),
     ]
     modes = {item[0] for item in modes_items}
@@ -398,8 +407,8 @@ class ClipboardUtil:
         
         objs = {active_obj} # in non-Object modes, make sure that active object is included
         
-        # Grease Pencil objects don't support multi-object edit mode (at least as of Blender 2.92)
-        if active_obj.type != 'GPENCIL': objs.update(objs_of_type)
+        # Grease Pencil objects don't support multi-object edit mode (at least as of Blender 5.0)
+        if active_obj.type not in _grease_pencil_obj_types: objs.update(objs_of_type)
         
         return objs
 
@@ -556,6 +565,25 @@ class OperatorCopy:
         bpy.ops.gpencil.select_all(action='INVERT')
         bpy.ops.gpencil.delete(type='POINTS')
         bpy.ops.gpencil.select_all(action='SELECT')
+        self.update_edit_objects()
+    
+    def preprocess_greasepencil(self):
+        for obj in self.objs:
+            gpencil = obj.data
+            for layer in gpencil.layers:
+                exclude = []
+                current_frame = layer.current_frame()
+                for frame in layer.frames:
+                    if frame == current_frame: continue
+                    if frame.select: continue
+                    exclude.append(frame.frame_number)
+                
+                for frame_number in exclude:
+                    layer.frames.remove(frame_number)
+        
+        bpy.ops.grease_pencil.select_all(action='INVERT')
+        bpy.ops.grease_pencil.delete(type='POINTS')
+        bpy.ops.grease_pencil.select_all(action='SELECT')
         self.update_edit_objects()
     
     def preprocess_armature(self):
@@ -764,10 +792,18 @@ class OperatorPaste:
         return {'FINISHED'}
     
     def offset_frames(self, obj, frame_delta):
-        if obj.type != 'GPENCIL': return
-        for layer in obj.data.layers:
-            for frame in layer.frames:
-                frame.frame_number += frame_delta
+        if obj.type not in _grease_pencil_obj_types: return
+        if frame_delta == 0: return
+        if bpy.app.version >= (4, 3, 0):
+            # frame.frame_number is now read-only, must use a method
+            for layer in obj.data.layers:
+                frame_numbers = sorted((frame_number for frame in layer.frames), reverse=(frame_delta > 0))
+                for frame_number in frame_numbers:
+                    layer.frames.move(frame_number + frame_delta)
+        else:
+            for layer in obj.data.layers:
+                for frame in layer.frames:
+                    frame.frame_number += frame_delta
     
     def preprocess_object(self):
         if self.replace_selection: bpy.ops.object.delete()
@@ -791,6 +827,10 @@ class OperatorPaste:
     def preprocess_gpencil(self):
         if self.replace_selection: bpy.ops.gpencil.delete(type='POINTS')
         if self.select_pasted: bpy.ops.gpencil.select_all(action='DESELECT')
+    
+    def preprocess_greasepencil(self):
+        if self.replace_selection: bpy.ops.grease_pencil.delete(type='POINTS')
+        if self.select_pasted: bpy.ops.grease_pencil.select_all(action='DESELECT')
     
     def preprocess_armature(self):
         if self.replace_selection: bpy.ops.armature.delete()
@@ -905,9 +945,9 @@ class OperatorPaste:
         active_obj = context.active_object
         selected_objs = set(context.selected_objects)
         
-        gpencil_objs = {obj for obj in selected_objs if obj.type == 'GPENCIL'}
+        gpencil_objs = {obj for obj in selected_objs if obj.type in _grease_pencil_obj_types}
         non_gpencil_objs = selected_objs - gpencil_objs
-        convertible = {obj for obj in non_gpencil_objs if BlEnums.is_convertible(obj.type, 'GPENCIL')}
+        convertible = {obj for obj in non_gpencil_objs if BlEnums.is_convertible(obj.type, _grease_pencil_obj_type)}
         not_directly_convertible = {obj for obj in non_gpencil_objs
             if (obj not in convertible) and BlEnums.is_convertible(obj.type, 'MESH')}
         
@@ -922,7 +962,7 @@ class OperatorPaste:
             selected_objs = set(bpy.data.objects) - unselected_objs
             
             convertible = {obj for obj in selected_objs
-                if (obj.type != 'GPENCIL') and BlEnums.is_convertible(obj.type, 'GPENCIL')}
+                if (obj.type not in _grease_pencil_obj_types) and BlEnums.is_convertible(obj.type, _grease_pencil_obj_type)}
         
         if not convertible: return
         
@@ -931,7 +971,7 @@ class OperatorPaste:
         other_objs = all_objs - convertible
         
         BlUtil.Object.select_activate(convertible, 'SOLO', active='ANY', view_layer=view_layer)
-        bpy.ops.object.convert(target='GPENCIL', keep_original=False)
+        bpy.ops.object.convert(target=_grease_pencil_obj_type, keep_original=False)
         
         all_objs = set(bpy.data.objects)
         selected_objs = all_objs - unselected_objs
@@ -945,6 +985,8 @@ class OperatorPaste:
             frame_offset = self.frame_start - self.frame_current
             for obj in convertible:
                 self.offset_frames(obj, frame_offset)
+    
+    convert_greasepencil = convert_gpencil
     
     def postprocess(self):
         bpy.ops.object.join()
@@ -1036,15 +1078,32 @@ class OperatorPaste:
         
         selection_state = self.select_pasted_original
         
-        for obj, obj_matrix in source_objs_matrices:
-            gpencil = obj.data
-            matrix = target_matrix @ obj_matrix
-            for layer in gpencil.layers:
-                for frame in layer.frames:
-                    for stroke in frame.strokes:
-                        for point in stroke.points:
-                            point.co = matrix @ point.co
-                            point.select = selection_state
+        if bpy.app.version >= (4, 3, 0):
+            for obj, obj_matrix in source_objs_matrices:
+                gpencil = obj.data
+                matrix = target_matrix @ obj_matrix
+                for layer in gpencil.layers:
+                    for frame in layer.frames:
+                        for stroke in frame.drawing.strokes:
+                            for point in stroke.points:
+                                point.position = matrix @ point.position
+                                point.select = selection_state
+                                if point.handle_left:
+                                    point.handle_left.position = matrix @ point.handle_left.position
+                                    point.handle_left = selection_state
+                                if point.handle_right:
+                                    point.handle_right.position = matrix @ point.handle_right.position
+                                    point.handle_right = selection_state
+        else:
+            for obj, obj_matrix in source_objs_matrices:
+                gpencil = obj.data
+                matrix = target_matrix @ obj_matrix
+                for layer in gpencil.layers:
+                    for frame in layer.frames:
+                        for stroke in frame.strokes:
+                            for point in stroke.points:
+                                point.co = matrix @ point.co
+                                point.select = selection_state
         
         BlUtil.Object.active_set(target_obj, view_layer=view_layer)
         
@@ -1056,6 +1115,8 @@ class OperatorPaste:
         bpy.ops.object.delete()
         
         BlUtil.Object.active_set(active_obj, view_layer=view_layer)
+    
+    postprocess_greasepencil = postprocess_gpencil
     
     def postprocess_armature(self):
         selection_state = self.select_pasted_original
@@ -1323,6 +1384,10 @@ class OperatorCut:
     
     def process_gpencil(self):
         bpy.ops.gpencil.delete(type='POINTS')
+        self.update_edit_objects()
+    
+    def process_greasepencil(self):
+        bpy.ops.grease_pencil.delete(type='POINTS')
         self.update_edit_objects()
     
     def process_armature(self):

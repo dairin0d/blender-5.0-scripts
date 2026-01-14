@@ -1479,6 +1479,36 @@ class BlEnums:
     }
 
 # Due to python's scope idiosyncrasies, these attributes are easier to define outside of the class
+if bpy.app.version >= (5, 0, 0):
+    _grease_pencil_object_infos = [
+        ObjectTypeInfo('GREASEPENCIL', "GreasePencil", {'RENDERABLE':True, 'MODIFIERS':True}, [
+            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+            ('EDIT_GREASE_PENCIL', 'EDIT', 'EDIT', 'GREASEPENCIL', False),
+            ('SCULPT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL', 'SCULPT', 'GREASEPENCIL', False),
+            ('PAINT_GREASE_PENCIL', 'PAINT_GREASE_PENCIL', 'DRAW', None, False),
+            ('WEIGHT_GREASE_PENCIL', 'WEIGHT_GREASE_PENCIL', 'PAINT', 'WEIGHT', False),
+            ('VERTEX_GREASE_PENCIL', 'VERTEX_GREASE_PENCIL', 'PAINT', 'VERTEX', False),
+        ]),
+    ]
+else:
+    _grease_pencil_object_infos = [
+        ObjectTypeInfo('GPENCIL', "GreasePencil", {'RENDERABLE':True, 'MODIFIERS':True}, [
+            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+            ('PAINT_GPENCIL', 'PAINT_GPENCIL', 'DRAW', None, False),
+            ('EDIT_GPENCIL', 'EDIT_GPENCIL', 'EDIT', 'GPENCIL', False),
+            ('SCULPT_GPENCIL', 'SCULPT_GPENCIL', 'SCULPT', None, False),
+            ('WEIGHT_GPENCIL', 'WEIGHT_GPENCIL', 'PAINT', 'WEIGHT', False),
+            ('VERTEX_GPENCIL', 'VERTEX_GPENCIL', 'PAINT', 'VERTEX', False),
+        ]),
+        ObjectTypeInfo('GREASEPENCIL', "GreasePencilv3", {'RENDERABLE':True, 'MODIFIERS':True}, [
+            ('OBJECT', 'OBJECT', 'OBJECT', None, True),
+            ('EDIT_GREASE_PENCIL', 'EDIT', 'EDIT', 'GREASEPENCIL', False),
+            ('SCULPT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL', 'SCULPT', 'GREASEPENCIL', False),
+            ('PAINT_GREASE_PENCIL', 'PAINT_GREASE_PENCIL', 'DRAW', None, False),
+            ('WEIGHT_GREASE_PENCIL', 'WEIGHT_GREASE_PENCIL', 'PAINT', 'WEIGHT', False),
+            ('VERTEX_GREASE_PENCIL', 'VERTEX_GREASE_PENCIL', 'PAINT', 'VERTEX', False),
+        ]),
+    ]
 BlEnums.object_infos = [
     ObjectTypeInfo('MESH', "Mesh", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
@@ -1517,22 +1547,7 @@ BlEnums.object_infos = [
     ObjectTypeInfo('VOLUME', "Volume", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
     ]),
-    ObjectTypeInfo('GPENCIL', "GreasePencil", {'RENDERABLE':True, 'MODIFIERS':True}, [
-        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ('PAINT_GPENCIL', 'PAINT_GPENCIL', 'DRAW', None, False),
-        ('EDIT_GPENCIL', 'EDIT_GPENCIL', 'EDIT', 'GPENCIL', False),
-        ('SCULPT_GPENCIL', 'SCULPT_GPENCIL', 'SCULPT', None, False),
-        ('WEIGHT_GPENCIL', 'WEIGHT_GPENCIL', 'PAINT', 'WEIGHT', False),
-        ('VERTEX_GPENCIL', 'VERTEX_GPENCIL', 'PAINT', 'VERTEX', False),
-    ]),
-    ObjectTypeInfo('GREASEPENCIL', "GreasePencilv3", {'RENDERABLE':True, 'MODIFIERS':True}, [
-        ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ('EDIT_GREASE_PENCIL', 'EDIT', 'EDIT', 'GREASEPENCIL', False),
-        ('SCULPT_GREASE_PENCIL', 'SCULPT_GREASE_PENCIL', 'SCULPT', 'GREASEPENCIL', False),
-        ('PAINT_GREASE_PENCIL', 'PAINT_GREASE_PENCIL', 'DRAW', None, False),
-        ('WEIGHT_GREASE_PENCIL', 'WEIGHT_GREASE_PENCIL', 'PAINT', 'WEIGHT', False),
-        ('VERTEX_GREASE_PENCIL', 'VERTEX_GREASE_PENCIL', 'PAINT', 'VERTEX', False),
-    ]),
+    *_grease_pencil_object_infos,
     ObjectTypeInfo('ARMATURE', "Armature", {}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
         ('EDIT_ARMATURE', 'EDIT', 'EDIT', 'ARMATURE', True),
@@ -1666,6 +1681,17 @@ class IDTypes:
 # https://docs.blender.org/api/current/bpy.types.BlendData.html
 # https://docs.blender.org/api/current/bpy_types_enum_items/id_type_items.html
 # https://docs.blender.org/api/current/bpy_types_enum_items/object_type_items.html
+if bpy.app.version >= (5, 0, 0):
+    # GPencil/GreasePencil -> Annotation, GreasePencilv3 -> GreasePencil, but some old names remain
+    IDTypes.register(type_name="Annotation", data_name="annotations", id_type='GREASEPENCIL',
+        label="Annotation", icon='GREASEPENCIL')
+    IDTypes.register(type_name="GreasePencil", data_name="grease_pencils", id_type='GREASEPENCIL_V3',
+        label="Grease Pencil", icon='GREASEPENCIL', obj_type='GREASEPENCIL')
+else:
+    IDTypes.register(type_name="GreasePencil", data_name="grease_pencils", id_type='GREASEPENCIL',
+        label="Grease Pencil", icon='GREASEPENCIL', obj_type='GPENCIL')
+    IDTypes.register(type_name="GreasePencilv3", data_name="grease_pencils_v3", id_type='GREASEPENCIL_V3',
+        label="Grease Pencil v3", icon='GREASEPENCIL', obj_type='GREASEPENCIL')
 IDTypes.register(type_name="Action", data_name="actions", id_type='ACTION',
     label="Action", icon='ACTION')
 IDTypes.register(type_name="Armature", data_name="armatures", id_type='ARMATURE',
@@ -1688,10 +1714,6 @@ IDTypes.register(type_name="Curves", data_name="hair_curves", id_type='CURVES',
     label="Hair Curves", icon='CURVES_DATA', obj_type='CURVES',)
 IDTypes.register(type_name="VectorFont", data_name="fonts", id_type='FONT',
     label="Font", icon='FILE_FONT')
-IDTypes.register(type_name="GreasePencil", data_name="grease_pencils", id_type='GREASEPENCIL',
-    label="Grease Pencil", icon='GREASEPENCIL', obj_type='GPENCIL')
-IDTypes.register(type_name="GreasePencilv3", data_name="grease_pencils_v3", id_type='GREASEPENCIL_V3',
-    label="Grease Pencil v3", icon='GREASEPENCIL', obj_type='GREASEPENCIL')
 IDTypes.register(type_name="Image", data_name="images", id_type='IMAGE',
     label="Image", icon='IMAGE_DATA')
 IDTypes.register(type_name="Key", data_name="shape_keys", id_type='KEY',

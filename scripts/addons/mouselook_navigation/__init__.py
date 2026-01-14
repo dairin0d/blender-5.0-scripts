@@ -95,8 +95,6 @@ Keymaps:
     * incorporate this feature into the generic key-registration mechanism?
 * implement key combinations in InputKeyMonitor? (e.g. Ctrl+Shift+LeftMouse and the like)
 
-* In Blender 2.73, Grease Pencil can be edited (and points can be selected)
-
 * Option to create an undo record when navigating from a camera?
 * Add optional shortcuts to move focus to certain locations? (current orbit point, active element, selection center, cursor, world origin)
 * Navigation history?
@@ -1624,6 +1622,15 @@ class SubdivisionNavigate:
                 modifier.level = 0
                 self.set_subdiv_type(modifier)
                 return modifier
+        elif obj.type == 'GREASEPENCIL':
+            for modifier in obj.modifiers:
+                if modifier.type == 'GREASE_PENCIL_SUBDIV': return modifier
+            
+            if self.auto_subdivide and (self.level > 0):
+                modifier = obj.modifiers.new("Subdivide", 'GREASE_PENCIL_SUBDIV')
+                modifier.level = 0
+                self.set_subdiv_type(modifier)
+                return modifier
         elif obj.type in ('MESH', 'CURVE', 'SURFACE', 'FONT'):
             for modifier in obj.modifiers:
                 # Multires is always first
@@ -1686,6 +1693,12 @@ class SubdivisionNavigate:
         return modifier.level
     
     def update_gp_subdiv(self, obj, modifier, initial_level):
+        self.set_level(modifier, "level", initial_level)
+    
+    def get_level_grease_pencil_subdiv(self, obj, modifier):
+        return modifier.level
+    
+    def update_grease_pencil_subdiv(self, obj, modifier, initial_level):
         self.set_level(modifier, "level", initial_level)
 
 # Blender's "Assign Shortcut" utility doesn't work with addon preferences and Internal-like
