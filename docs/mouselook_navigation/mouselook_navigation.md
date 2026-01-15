@@ -101,6 +101,7 @@ The addon attempts to provide better usability and customization of basic 3D vie
   * **Show** - if enabled, the Trackball toggle in 3D Viewport's header will be shown
 * **System** (options related to the inner workings of the addon)
   * **Keymap registration delay** - The number of frames (after script reload) to wait before the addon  registers its keymaps. The delay is necessary to avoid crashes, and in the presence of some other addons may need to be more than 1 frame.
+  * **Per-Workspace** - If enabled, the on/off toggle in the 3D Viewport header will be independent for each workspace.
 
 ## Keymaps
 
