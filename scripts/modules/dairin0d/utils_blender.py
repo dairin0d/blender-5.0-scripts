@@ -957,6 +957,25 @@ class BlUtil:
             return [v for k, v in BlUtil.Data.all_iter(non_removable, exclude)]
         
         @staticmethod
+        def find(bpy_data, name, default=None):
+            if isinstance(bpy_data, str): bpy_data = getattr(bpy.data, bpy_data)
+            
+            if isinstance(name, str):
+                result_full = None
+                result = None
+                for idblock in bpy_data:
+                    if idblock.name_full == name:
+                        if (result_full is None) or (not idblock.library):
+                            result_full = idblock
+                    elif idblock.name == name:
+                        if (result is None) or (not idblock.library):
+                            result = idblock
+                return result_full or result or default
+            else:
+                names = (name if isinstance(name, (set, dict, collections.abc.Mapping)) else set(name))
+                return [idblock for idblock in bpy_data if (idblock.name_full in names) or (idblock.name in names)]
+        
+        @staticmethod
         def get_users_map(bpy_datas, use_fake_user=True):
             if hasattr(bpy_datas, "values"): bpy_datas = bpy_datas.values() # dict
             
