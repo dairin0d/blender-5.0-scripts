@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "mouselook_navigation"
-version = "1.10.0"
+version = "1.11.0"
 name = "Mouselook Navigation"
 tagline = "Provides extra 3D view navigation options (ZBrush mode) and customizability"
 maintainer = "dairin0d, moth3r"
@@ -12,7 +12,7 @@ website = "https://docs.moth3r.com"
 
 
 tags = ["3D View"]
-blender_version_min = "4.2.0"
+blender_version_min = "5.0.0"
 
 license = [
   "SPDX:GPL-2.0-or-later",

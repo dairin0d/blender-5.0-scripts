@@ -19,8 +19,8 @@
 bl_info = {
     "name": "Cut / Copy / Paste",
     "author": "dairin0d, moth3r",
-    "version": (2, 1, 3),
-    "blender": (3, 6, 0),
+    "version": (2, 2, 0),
+    "blender": (5, 0, 0),
     "location": "3D View",
     "description": "Advanced cut/copy/paste for objects and elements",
     "warning": "",
