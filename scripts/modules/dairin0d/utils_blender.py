@@ -766,7 +766,8 @@ class BlUtil:
                 if library_weakref.id_name != 'NTSmooth by Angle': continue
                 
                 input_items = node_group.interface.items_tree.items()
-                md_inputs = {key:md[info.identifier] for key, info in input_items if info.identifier in md}
+                md_inputs = {key: BlUtil.Modifier.get_input(md, info.identifier)
+                    for key, info in input_items if info.identifier in md}
                 
                 return dict(container=md, enabled_name="show_viewport",
                     enabled=md.show_viewport, inputs=md_inputs)
@@ -809,7 +810,7 @@ class BlUtil:
             node_group = md.node_group
             for key, info in node_group.interface.items_tree.items():
                 if key not in inputs: continue
-                md[info.identifier] = inputs[key]
+                BlUtil.Modifier.set_input(md, info.identifier, inputs[key])
         
         # active/selection/hidden states can be different for each view layer
         
@@ -933,6 +934,33 @@ class BlUtil:
                 
                 for obj in layer_objs:
                     obj.select_set(False, view_layer=view_layer)
+    
+    class Modifier:
+        @staticmethod
+        def get_input(md, name):
+            if not hasattr(md, "node_group"): raise TypeError("Only implemented for node-based modifiers")
+            node_group = md.node_group
+            if node_group is None: raise ValueError("Modifier has no node group")
+            
+            if hasattr(md, "properties"): # Blender 5.2+
+                socket_interface = node_group.interface.items_tree[name]
+                socket_accessor = getattr(md.properties.inputs, socket_interface.identifier)
+                return socket_accessor.value
+            else: # Blender < 5.2
+                return md[name]
+        
+        @staticmethod
+        def set_input(md, name, value):
+            if not hasattr(md, "node_group"): raise TypeError("Only implemented for node-based modifiers")
+            node_group = md.node_group
+            if node_group is None: raise ValueError("Modifier has no node group")
+            
+            if hasattr(md, "properties"): # Blender 5.2+
+                socket_interface = node_group.interface.items_tree[name]
+                socket_accessor = getattr(md.properties.inputs, socket_interface.identifier)
+                socket_accessor.value = value
+            else: # Blender < 5.2
+                md[name] = value
     
     class Data:
         @staticmethod
