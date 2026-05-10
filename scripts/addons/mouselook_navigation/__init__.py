@@ -1127,14 +1127,14 @@ class MouselookNavigation:
             self.use_origin_selection = userprefs.inputs.use_rotate_around_active
             self.use_origin_mouse_last = False
         
-        is_sculpt = (context.mode == 'SCULPT')
+        is_sculpt_mesh = (context.mode == 'SCULPT')
         is_dyntopo = False
         
         ignore_raycast = (context.mode not in settings.raycast_modes) or (settings.zbrush_method == 'NONE')
         use_raycast = (not ignore_raycast) and (self.use_origin_mouse or self.use_origin_mouse_last or (self.zbrush_mode != 'NONE'))
         
         # If a mesh has face data, Blender will automatically disable dyntopo on re-entering sculpt mode
-        if is_sculpt and use_raycast and (settings.zbrush_method != 'ZBUFFER'):
+        if is_sculpt_mesh and use_raycast and (settings.zbrush_method != 'ZBUFFER'):
             is_dyntopo = context.object.use_dynamic_topology_sculpting
             if is_dyntopo: bpy.ops.sculpt.dynamic_topology_toggle()
         
@@ -1148,7 +1148,7 @@ class MouselookNavigation:
             if settings.zbrush_method == 'ZBUFFER':
                 cast_result = self.depth_cast(context, mouse_region, depthcast_radius)
             elif settings.zbrush_method == 'RAYCAST':
-                with ToggleObjectMode('OBJECT' if is_sculpt else None):
+                with ToggleObjectMode('OBJECT' if is_sculpt_mesh else None):
                     cast_result = self.sv.ray_cast(mouse_region, raycast_radius)
         
         self.explicit_orbit_origin = None
@@ -1182,7 +1182,12 @@ class MouselookNavigation:
                 
                 if wrk_pos > self.zbrush_border:
                     if use_raycast and (settings.zbrush_method == 'SELECTION'):
-                        with ToggleObjectMode('OBJECT' if is_sculpt else None):
+                        needs_obj_mode = (context.mode in {
+                            'SCULPT', 'SCULPT_CURVES',
+                            'SCULPT_GPENCIL', 'SCULPT_GREASE_PENCIL',
+                            'VERTEX_GPENCIL', 'VERTEX_GREASE_PENCIL',
+                        })
+                        with ToggleObjectMode('OBJECT' if needs_obj_mode else None):
                             cast_result = self.sv.select(mouse_region)
                     
                     if cast_result.success or ignore_raycast:
