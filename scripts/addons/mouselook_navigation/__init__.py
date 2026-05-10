@@ -1193,6 +1193,10 @@ class MouselookNavigation:
             if self.mode_stack.mode == 'NONE':
                 self.mode_stack.mode = self.default_mode
         
+        if (self.zbrush_mode != 'NONE') and (context.mode in {'PAINT_GREASE_PENCIL', 'PAINT_GPENCIL'}):
+            if tool_settings.gpencil_stroke_placement_view3d not in {'SURFACE', 'STROKE'}:
+                return {'PASS_THROUGH'}
+        
         if is_dyntopo: bpy.ops.sculpt.dynamic_topology_toggle()
         
         self.color_crosshair_visible = settings.get_color("color_crosshair_visible")
