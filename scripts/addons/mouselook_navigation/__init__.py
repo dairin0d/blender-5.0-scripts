@@ -1801,8 +1801,9 @@ class AutoRegKeymapInfo:
         ('Image Paint', 'Image Paint', 'PAINT_TEXTURE'),
         ('Sculpt', 'Sculpt', 'SCULPT'),
         ('Sculpt Curves', 'Sculpt Curves', 'SCULPT_CURVES'),
-        ('Particle', 'Particle', 'PARTICLE'),
         ('Paint Curve', 'Paint Curve', ''), # no dedicated mode?
+        ('Particle', 'Particle', 'PARTICLE'),
+        ('Point Cloud', 'Point Cloud', 'EDIT_POINTCLOUD'),
         ('Grease Pencil: Paint', 'Grease Pencil', 'PAINT_GPENCIL|PAINT_GREASE_PENCIL'),
         ('Grease Pencil: Edit', 'Grease Pencil', 'EDIT_GPENCIL|EDIT_GREASE_PENCIL'),
         ('Grease Pencil: Sculpt', 'Grease Pencil', 'SCULPT_GPENCIL|SCULPT_GREASE_PENCIL'),
