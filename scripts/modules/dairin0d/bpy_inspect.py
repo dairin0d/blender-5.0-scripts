@@ -1455,26 +1455,45 @@ class BlEnums:
         return (src_info.is_convertible(dst_info.name) if src_info and dst_info else False)
     
     # Panel.bl_context is not an enum property, so we can't get all possible values through introspection
+    # Last updated: around Blender 5.1.1
     panel_contexts = {
+        # source/blender/editors/space_view3d/space_view3d.cc (BUT: it's not necessarily mistake-free)
+        # Note: some context modes may map to the same Panel.bl_context
         'VIEW_3D':{
-            "mesh_edit":'EDIT_MESH',
-            "curve_edit":'EDIT_CURVE',
-            "surface_edit":'EDIT_SURFACE',
-            "text_edit":'EDIT_TEXT',
-            "armature_edit":'EDIT_ARMATURE',
-            "mball_edit":'EDIT_METABALL',
-            "lattice_edit":'EDIT_LATTICE',
-            "posemode":'POSE',
-            "sculpt_mode":'SCULPT',
-            "weightpaint":'PAINT_WEIGHT',
-            "vertexpaint":'PAINT_VERTEX',
-            "texturepaint":'PAINT_TEXTURE',
-            "particlemode":'PARTICLE',
-            "objectmode":'OBJECT',
+            'EDIT_MESH':"mesh_edit",
+            'EDIT_CURVE':"curve_edit",
+            'EDIT_CURVES':"curves_edit",
+            'EDIT_SURFACE':"curve_edit",
+            'EDIT_TEXT':"text_edit",
+            'EDIT_ARMATURE':"armature_edit",
+            'EDIT_METABALL':"mball_edit",
+            'EDIT_LATTICE':"lattice_edit",
+            'EDIT_GREASE_PENCIL':"grease_pencil_edit",
+            'PAINT_GREASE_PENCIL':"grease_pencil_paint",
+            'SCULPT_GREASE_PENCIL':"grease_pencil_sculpt",
+            'WEIGHT_GREASE_PENCIL':"grease_pencil_weight",
+            'VERTEX_GREASE_PENCIL':"grease_pencil_vertex",
+            'EDIT_POINTCLOUD':"pointcloud_edit",
+            'POSE':"posemode",
+            'SCULPT':"sculpt_mode",
+            'PAINT_WEIGHT':"weightpaint",
+            'PAINT_VERTEX':"vertexpaint",
+            'PAINT_TEXTURE':"texturepaint",
+            'PARTICLE':"particlemode",
+            'OBJECT':"objectmode",
+            'EDIT_GPENCIL':"greasepencil_edit",
+            'PAINT_GPENCIL':"greasepencil_paint",
+            'SCULPT_GPENCIL':"greasepencil_sculpt",
+            'WEIGHT_GPENCIL':"greasepencil_weight",
+            'VERTEX_GPENCIL':"greasepencil_vertex",
+            'SCULPT_CURVES':"curves_sculpt",
         },
+        # source/blender/editors/space_buttons/space_buttons.cc
         'PROPERTIES':{
-            "object", "data", "material", "physics", "constraint",
-            "particle", "render", "scene", "texture", "world"
+            "scene", "render", "output", "view_layer", "world", "collection",
+            "object", "data", "material", "texture", "particle", "physics",
+            "bone", "modifier", "shaderfx", "constraint", "bone_constraint",
+            "tool", "strip", "strip_modifier"
         },
     }
 
