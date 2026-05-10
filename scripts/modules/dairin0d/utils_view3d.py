@@ -892,6 +892,7 @@ class SmartView3D:
         modify = not revert # if revert is None, selection is not reverted but results are still calculated
         
         context_override = self.context_dict
+        view_layer = context_override["view_layer"]
         active_object = context_override["active_object"]
         tool_settings = context_override["tool_settings"]
         
@@ -988,6 +989,8 @@ class SmartView3D:
                     selected_object = next(iter(sel_obj), (None, None))[0]
         
         if set_mode_afterwards:
+            # Note: this is necessary e.g. for particle edit mode
+            if active_object: BlUtil.Object.active_set(active_object, view_layer)
             bpy.ops.object.mode_set(mode=set_mode_afterwards)
         
         if select_mode:
