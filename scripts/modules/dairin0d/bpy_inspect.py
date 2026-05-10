@@ -1561,7 +1561,7 @@ BlEnums.object_infos = [
     ], {'MESH':True, 'CURVE':True}),
     ObjectTypeInfo('POINTCLOUD', "PointCloud", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
-        ('EDIT_POINT_CLOUD', 'EDIT', 'EDIT', 'POINTCLOUD', True),
+        ('EDIT_POINTCLOUD', 'EDIT', 'EDIT', 'POINTCLOUD', True),
     ], {'MESH':True}),
     ObjectTypeInfo('VOLUME', "Volume", {'RENDERABLE':True, 'MODIFIERS':True}, [
         ('OBJECT', 'OBJECT', 'OBJECT', None, True),
