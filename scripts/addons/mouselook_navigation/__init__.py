@@ -1312,6 +1312,10 @@ class MouselookNavigation:
         view_layer = context.view_layer
         prefs_system = context.preferences.system
         
+        # Some overlays (like the grid) can write to depth buffer.
+        # However, we can't disable overalys completely, since
+        # some actual objects (cameras, lights) are overlays too.
+        
         # Note: there seems to be much less lag when using the Workbench engine.
         # Engine affects shading type (and possibly other settings),
         # so it has to be changed ~last and reverted ~first.
@@ -1320,6 +1324,15 @@ class MouselookNavigation:
         override_settings = [
             (view3d.overlay, "show_relationship_lines", False),
             (view3d.overlay, "show_motion_paths", False),
+            (view3d.overlay, "show_floor", False),
+            (view3d.overlay, "show_axis_x", False),
+            (view3d.overlay, "show_axis_y", False),
+            (view3d.overlay, "show_axis_z", False),
+            (view3d.overlay, "show_cursor", False),
+            (view3d.overlay, "show_annotation", False),
+            (view3d.overlay, "show_motion_paths", False),
+            (view3d.overlay, "show_relationship_lines", False),
+            (view3d.overlay, "show_face_orientation", False),
             (view3d, "show_reconstruction", False),
             (view3d, "show_gizmo", False),
             (view3d.shading, "show_xray", False),
@@ -1347,12 +1360,11 @@ class MouselookNavigation:
             original_settings.append((target, propname, getattr(target, propname)))
             setattr(target, propname, value)
         
-        # Some overlays (like the grid) can write to depth buffer, but we should ignore them
-        show_overlays = view3d.overlay.show_overlays
-        view3d.overlay.show_overlays = False
-        
         # Note: in Blender 4.2, depth cast did not work in Sculpt mode
         # when overlays were disabled, but it seems fixed now
+        
+        show_overlays = view3d.overlay.show_overlays
+        view3d.overlay.show_overlays = True
         
         if self.should_use_redraw_timer(context):
             result = [None]
