@@ -323,6 +323,12 @@ class BlRna:
                 if (not ignore_default) or (not BlRna.is_default(getattr(obj, name), rna_prop)):
                     setattr(obj, name, BlRna.get_default(rna_prop))
     
+    # Classes that need to be serialized as structs (and may not have is_never_none=True)
+    struct_classes = (
+        bpy.types.PropertyGroup,
+        bpy.types.OperatorProperties,
+    )
+    
     @staticmethod
     def serialize_value(value, recursive=True, json=False, structs=False, is_struct=False):
         """Serialize rna property value"""
@@ -336,7 +342,7 @@ class BlRna:
             base_class = value_class.__base__
             class_name = value_class.__name__
             
-            if (base_class is bpy.types.PropertyGroup) or (structs and is_struct):
+            if (base_class in BlRna.struct_classes) or (structs and is_struct):
                 if recursive:
                     rna_names = ("bl_rna", "rna_type")
                     value = {
