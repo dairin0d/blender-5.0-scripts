@@ -120,9 +120,21 @@ class Selection:
             selectable_bones = (active_obj.pose.bones if bpy.app.version >= (5, 0, 0) else active_obj.data.bones)
             return any(item.select for item in selectable_bones)
         elif mode == 'PARTICLE':
-            # Theoretically, particle keys can be selected,
-            # but there seems to be no API for working with this
+            # Theoretically, particle keys can be selected, but there seems to be no API for working with this.
+            # Overall, particle edit mode seems to be more of a hair sculpting tool.
             pass
+        elif mode == 'EDIT_POINTCLOUD':
+            # Technically, there is a ".selection" attribute, but it's not always available
+            # (e.g. when a "select all" operator is used, insetad of specific selection).
+            # Also, on a click, selection operators seem to invoke before addon operators
+            # (disrupting the selection before a snapshot can be made)?
+            pass
+        elif mode in {'EDIT_GREASE_PENCIL', 'EDIT_GPENCIL'}:
+            for layer in active_obj.data.layers:
+                frame = layer.current_frame()
+                for stroke in frame.drawing.strokes:
+                    # stroke.select is True if any point is selected
+                    if stroke.select: return True
         else:
             pass # no selectable elements in other modes
         
@@ -294,6 +306,26 @@ class Selection:
             # Theoretically, particle keys can be selected,
             # but there seems to be no API for working with this
             pass
+        elif mode == 'EDIT_POINTCLOUD':
+            # Technically, there is a ".selection" attribute, but it's not always available
+            # (e.g. when a "select all" operator is used, insetad of specific selection).
+            # Also, on a click, selection operators seem to invoke before addon operators
+            # (disrupting the selection before a snapshot can be made)?
+            pass
+        elif mode in {'EDIT_GREASE_PENCIL', 'EDIT_GPENCIL'}:
+            # We're skipping non-current frames anyway, might as well skip non-selected strokes too
+            total = sum(len(stroke.points) for layer in active_obj.data.layers
+                for stroke in layer.current_frame().drawing.strokes if stroke.select)
+            yield ([], None, total)
+            
+            # Note: strokes and points are ephemeral wrappers (created anew on each access)
+            for layer in active_obj.data.layers:
+                frame = layer.current_frame()
+                drawing = frame.drawing
+                for s_i, stroke in enumerate(drawing.strokes):
+                    if not stroke.select: continue
+                    for p_i, point in enumerate(stroke.points):
+                        yield ((drawing, s_i, p_i), sel_map[point.select])
         else:
             pass # no selectable elements in other modes
     
@@ -326,6 +358,10 @@ class Selection:
             # Theoretically, particle keys can be selected,
             # but there seems to be no API for working with this
             pass
+        elif mode == 'EDIT_POINTCLOUD':
+            pass # elements can't be active
+        elif mode in {'EDIT_GREASE_PENCIL', 'EDIT_GPENCIL'}:
+            pass # elements can't be active
         else:
             pass # no selectable elements in other modes
     
@@ -663,6 +699,36 @@ class Selection:
                 bpy.ops.particle.select_all(action=select_all_action)
             # Theoretically, particle keys can be selected,
             # but there seems to be no API for working with this
+        elif mode == 'EDIT_POINTCLOUD':
+            # if select_all_action:
+            #     bpy.ops.pointcloud.select_all(action=select_all_action)
+            
+            # Technically, there is a ".selection" attribute, but it's not always available
+            # (e.g. when a "select all" operator is used, insetad of specific selection).
+            # Also, on a click, selection operators seem to invoke before addon operators
+            # (disrupting the selection before a snapshot can be made)?
+            pass
+        elif mode in {'EDIT_GREASE_PENCIL', 'EDIT_GPENCIL'}:
+            if select_all_action:
+                bpy.ops.grease_pencil.select_all(action=select_all_action)
+            
+            # NOTE: this is a limited-functionality support (snapshot/restoration only).
+            # For the extended operations (NOT, OR, AND, XOR and such), selector code
+            # egenration would need to be modified (or even remade in a different way).
+            
+            if use_brute_force:
+                for layer in active_obj.data.layers:
+                    frame = layer.current_frame()
+                    drawing = frame.drawing
+                    for s_i, stroke in enumerate(drawing.strokes):
+                        for p_i, point in enumerate(stroke.points):
+                            point.select = ('select' in data.get((drawing, s_i, p_i), ''))
+            else:
+                for (drawing, s_i, p_i), value in data.items():
+                    if s_i >= len(drawing.strokes): continue
+                    stroke = drawing.strokes[s_i]
+                    if p_i >= len(stroke.points): continue
+                    stroke.points[p_i].select = ('select' in value)
         else:
             pass # no selectable elements in other modes
 
