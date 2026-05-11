@@ -1347,9 +1347,12 @@ class MouselookNavigation:
             original_settings.append((target, propname, getattr(target, propname)))
             setattr(target, propname, value)
         
-        # In Blender 4.2, depth cast does not work in Sculpt mode when overlays are disabled
+        # Some overlays (like the grid) can write to depth buffer, but we should ignore them
         show_overlays = view3d.overlay.show_overlays
-        view3d.overlay.show_overlays = True
+        view3d.overlay.show_overlays = False
+        
+        # Note: in Blender 4.2, depth cast did not work in Sculpt mode
+        # when overlays were disabled, but it seems fixed now
         
         if self.should_use_redraw_timer(context):
             result = [None]
